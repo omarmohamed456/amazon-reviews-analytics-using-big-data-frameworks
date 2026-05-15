@@ -5,23 +5,43 @@ services:
     container_name: namenode
     environment:
       - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_hadoop_http_staticuser_user=root
+      - HDFS_CONF_dfs_namenode_rpc__address=namenode:9000
+      - HDFS_CONF_dfs_namenode_http__address=0.0.0.0:9870
+      - HDFS_CONF_dfs_replication=1
     ports:
       - "9870:9870"
       - "9000:9000"
     volumes:
       - namenode_data:/hadoop/dfs/name
+    networks:
+      - hadoop_net
+    healthcheck:
+      test: ["CMD-SHELL", "hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: datanode
     environment:
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_hadoop_http_staticuser_user=root
+      - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_datanode_address=0.0.0.0:9866
+      - HDFS_CONF_dfs_datanode_http__address=0.0.0.0:9864
+      - HDFS_CONF_dfs_datanode_ipc__address=0.0.0.0:9867
     volumes:
       - datanode_data:/hadoop/dfs/data
     ports:
       - "9864:9864"
     depends_on:
-      - namenode
+      namenode:
+        condition: service_healthy
+    networks:
+      - hadoop_net
 
   spark-master:
     image: apache/spark:3.5.1
@@ -32,6 +52,8 @@ services:
     ports:
       - "8080:8080"
       - "7077:7077"
+    networks:
+      - hadoop_net
 
   spark-worker:
     image: apache/spark:3.5.1
@@ -41,6 +63,8 @@ services:
       - SPARK_NO_DAEMONIZE=true
     depends_on:
       - spark-master
+    networks:
+      - hadoop_net
 
   jupyter:
     image: quay.io/jupyter/pyspark-notebook:latest
@@ -53,7 +77,13 @@ services:
       - SPARK_MASTER=spark://spark-master:7077
     depends_on:
       - spark-master
+    networks:
+      - hadoop_net
 
 volumes:
   namenode_data:
   datanode_data:
+
+networks:
+  hadoop_net:
+    driver: bridge
