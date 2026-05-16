@@ -25,6 +25,68 @@ Dataset: [Amazon Reviews — Kaggle](https://www.kaggle.com/datasets/kritanjalij
 
 ---
 
+## Notebook Overview (`amazon-reviews.ipynb`)
+
+The notebook walks through a full NLP pipeline on the Amazon Reviews dataset using PySpark, from raw data ingestion to TF-IDF feature extraction.
+
+### What It Does
+
+**1. Data Ingestion**
+Reads `train.csv` directly from HDFS (`hdfs://namenode:9000/amazon_reviews/train.csv`) into a Spark DataFrame with schema inference.
+
+**2. Preprocessing**
+- Renames columns to `polarity`, `review_heading`, and `review_body`
+- Converts the polarity column into a binary label: `1` for positive (polarity = 2), `0` for negative
+- Concatenates the heading and body into a single `text` field
+
+**3. Exploratory Data Analysis (EDA)**
+- Row count and schema inspection
+- Null/missing value check across all columns
+- Label distribution — counts of positive vs. negative reviews
+- Top 20 most frequent words across the corpus, visualized as a bar chart
+
+**4. Text Cleaning & Tokenization**
+- Lowercases all text and strips non-alphabetic characters
+- Tokenizes into word arrays using PySpark's `Tokenizer`
+- Explodes words to compute global word frequencies
+
+**5. TF-IDF Feature Extraction**
+A full MLlib `Pipeline` with four stages:
+- `RegexTokenizer` — splits on non-word characters, lowercases
+- `StopWordsRemover` — filters out common English stopwords
+- `HashingTF` — hashes filtered tokens into a 10,000-feature vector
+- `IDF` — weights features by inverse document frequency (min doc frequency = 2)
+
+The final `df_tfidf` DataFrame contains a `features` column (sparse TF-IDF vectors) and a `label` column, ready for downstream ML model training.
+
+### Data Schema
+
+```
+polarity        integer   (1 = negative, 2 = positive → mapped to 0/1)
+review_heading  string
+review_body     string
+label           integer   (0 = negative, 1 = positive)
+text            string    (heading + body, concatenated)
+```
+
+### Loading Data into HDFS
+
+Before running the notebook, upload the dataset CSV to HDFS:
+
+```bash
+# Copy the CSV into the namenode container
+docker cp train.csv namenode:/tmp/train.csv
+
+# Create the HDFS directory and move the file
+docker exec namenode hdfs dfs -mkdir -p /amazon_reviews
+docker exec namenode hdfs dfs -put /tmp/train.csv /amazon_reviews/train.csv
+
+# Verify
+docker exec namenode hdfs dfs -ls /amazon_reviews
+```
+
+---
+
 ## Requirements
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
@@ -142,7 +204,9 @@ Copy the token from that URL and paste it into the browser prompt.
 ```
 .
 ├── docker-compose.yml
-└── notebooks/          # Place your .ipynb files here (mounted into Jupyter at /home/jovyan/work)
+├── README.md
+└── notebooks/
+    └── amazon-reviews.ipynb   # Full EDA + TF-IDF pipeline (place at /home/jovyan/work inside Jupyter)
 ```
 
 Your local directory is automatically mounted into the Jupyter container, so any notebooks or data files you place here are accessible inside the environment.
