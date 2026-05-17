@@ -1,0 +1,19 @@
+FROM quay.io/jupyter/pyspark-notebook:latest
+
+USER root
+
+# Install Spark NLP
+RUN pip install --no-cache-dir spark-nlp
+
+# Install additional useful libraries
+RUN pip install --no-cache-dir \
+    matplotlib \
+    seaborn \
+    pandas \
+    numpy
+
+# Switch back to jovyan user
+USER $NB_UID
+
+# Set working directory
+WORKDIR /home/jovyan/work

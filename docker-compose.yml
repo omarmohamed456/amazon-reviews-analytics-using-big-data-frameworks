@@ -67,7 +67,9 @@ services:
       - hadoop_net
 
   jupyter:
-    image: quay.io/jupyter/pyspark-notebook:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
     container_name: jupyter
     ports:
       - "8888:8888"
@@ -75,6 +77,8 @@ services:
       - ./:/home/jovyan/work
     environment:
       - SPARK_MASTER=spark://spark-master:7077
+      - GRANT_SUDO=yes
+    user: root
     depends_on:
       - spark-master
     networks:
